@@ -18,7 +18,7 @@ export default function LoginPage() {
 
     if (res.ok) {
       toast.success("Logged in");
-      router.push("/dashboard");
+      router.push("/tasks");
     } else {
       toast.error("Invalid credentials");
     }
