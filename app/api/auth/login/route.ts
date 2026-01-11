@@ -52,7 +52,7 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { signJwt } from "@/src/lib/auth";
-import { sql } from "@/src/lib/db";
+import { supabase } from "@/src/lib/db";
 
 export async function POST(req: Request) {
   try {
@@ -65,11 +65,14 @@ export async function POST(req: Request) {
       );
     }
 
-    const users = await sql`
-      SELECT id, email, password
-      FROM users
-      WHERE email = ${email}
-    `;
+    const { data: users, error } = await supabase
+      .from('users')
+      .select('id, email, password')
+      .eq('email', email);
+
+    if (error) {
+      throw new Error("Database error");
+    }
 
     const user = users[0];
     if (!user) {
@@ -87,7 +90,6 @@ export async function POST(req: Request) {
     });
 
     const res = NextResponse.json({ success: true });
-
     res.cookies.set("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",

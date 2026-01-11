@@ -1,11 +1,16 @@
-import { sql } from "@/src/lib/db";
-import { NextResponse } from "next/server";
+import { authenticateRequest } from "@/src/lib/auth-middleware";
+import { supabase } from "@/src/lib/db";
+import { NextRequest, NextResponse } from "next/server";
+
 
 /**
  * CREATE TASK
  * POST /api/tasks
  */
 export async function POST(req: Request) {
+  const auth = authenticateRequest(req as NextRequest);
+  if (auth.error) return auth.error;
+
   try {
     const { task_desc } = await req.json();
 
@@ -16,13 +21,17 @@ export async function POST(req: Request) {
       );
     }
 
-    const result = await sql`
-      INSERT INTO task (task_desc)
-      VALUES (${task_desc})
-      RETURNING *
-    `;
+    const { data, error } = await supabase
+      .from('task')
+      .insert({ task_desc })
+      .select()
+      .single();
 
-    return NextResponse.json(result[0], { status: 201 });
+    if (error) {
+      throw error;
+    }
+
+    return NextResponse.json(data, { status: 201 });
   } catch {
     return NextResponse.json(
       { error: "Failed to create task" },
@@ -36,27 +45,36 @@ export async function POST(req: Request) {
  * GET /api/tasks?page=1&limit=5
  */
 export async function GET(req: Request) {
+  const auth = authenticateRequest(req as NextRequest);
+  if (auth.error) return auth.error;
+
   try {
     const { searchParams } = new URL(req.url);
     const page = Number(searchParams.get("page") ?? 1);
     const limit = Number(searchParams.get("limit") ?? 5);
     const offset = (page - 1) * limit;
 
-    const tasks = await sql`
-      SELECT *
-      FROM task
-      ORDER BY created_at DESC
-      LIMIT ${limit}
-      OFFSET ${offset}
-    `;
+    const { data: tasks, error: tasksError } = await supabase
+      .from('task')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
 
-    const totalResult = await sql`
-      SELECT COUNT(*) FROM task
-    `;
+    if (tasksError) {
+      throw tasksError;
+    }
+
+    const { count, error: countError } = await supabase
+      .from('task')
+      .select('*', { count: 'exact', head: true });
+
+    if (countError) {
+      throw countError;
+    }
 
     return NextResponse.json({
       data: tasks,
-      total: Number(totalResult[0].count),
+      total: count,
       page,
       limit,
     });

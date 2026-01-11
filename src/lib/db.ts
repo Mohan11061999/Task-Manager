@@ -1,7 +1,13 @@
-import { neon } from "@neondatabase/serverless";
+import { createClient } from '@supabase/supabase-js'
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL is not defined");
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY
+
+if (!supabaseUrl || !supabaseKey) {
+  console.warn("Supabase environment variables not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY in your .env.local file.");
 }
 
-export const sql = neon(process.env.DATABASE_URL);
+export const supabase = createClient(
+  supabaseUrl || 'https://placeholder.supabase.co',
+  supabaseKey || 'placeholder-key'
+)
